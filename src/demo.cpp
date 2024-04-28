@@ -16,55 +16,88 @@ Also, this node would publish the ground and non-ground pointclouds to the topic
 Thus, you can visualize the results in rviz by importing the rviz config file in DipG-Seg/rviz/reprj.rviz.
 *****************************************************************************************/
 
-#include "time_utils.h"
+// #include "time_utils.h"
 #include "kitti_loader.h"
 #include "evaluate.h"
 #include "dipgseg.h"
 
-#include <ros/ros.h>
-#include <sensor_msgs/PointCloud2.h>
+#include <memory>
+
+#include <geometry_msgs/msg/transform_stamped.hpp>
+#include <pcl/common/transforms.h>
+#include <pcl/io/ply_io.h>
+#include <pcl_conversions/pcl_conversions.h>
+#include <pcl_ros/point_cloud.h>
+#include <rclcpp/qos.hpp>
+#include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/point_cloud2.hpp>
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
+
 using namespace KittiLoader;
 
-bool verbose = false;
-ros::Publisher ground_pub;
-ros::Publisher non_ground_pub;
+int verbose = true;
 
-void callback(const sensor_msgs::PointCloud2ConstPtr& cloud_msg, DIPGSEG::Dipgseg& dipgseg){
-    pcl::PointCloud<pcl::PointXYZI> cloud;
-    pcl::fromROSMsg(*cloud_msg, cloud);
-    pcl::PointCloud<pcl::PointXYZI> cloud_ground, cloud_non_ground;
+class SegmentationNode : public rclcpp::Node {
+public:
+  SegmentationNode(const rclcpp::NodeOptions &node_options);
+  void scanCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
+
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr ground_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr obstacle_pub_;
+  rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr cloud_sub_;
+  std::shared_ptr<DIPGSEG::Dipgseg> dipgseg_;
+};
+
+
+SegmentationNode::SegmentationNode(const rclcpp::NodeOptions &node_options)
+    : Node("ground_segmentation", node_options) {
+
+  dipgseg_ = std::make_shared<DIPGSEG::Dipgseg>();
+
+  std::string ground_topic, obstacle_topic, input_topic;
+  ground_topic = this->declare_parameter("ground_output_topic", "ground_cloud");
+  obstacle_topic = this->declare_parameter("obstacle_output_topic", "obstacle_cloud");
+  input_topic = this->declare_parameter("input_topic", "/livox/lidar_pcd2");
+
+  cloud_sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
+      input_topic, rclcpp::SensorDataQoS(),
+      std::bind(&SegmentationNode::scanCallback, this, std::placeholders::_1));
+  ground_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(ground_topic, rclcpp::SensorDataQoS());
+  obstacle_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(obstacle_topic, rclcpp::SensorDataQoS());
+
+  RCLCPP_INFO(this->get_logger(), "Segmentation node initialized");
+}
+
+void SegmentationNode::scanCallback(
+    const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
+  pcl::PointCloud<pcl::PointXYZI> cloud;
+  pcl::fromROSMsg(*msg, cloud);
+
+  pcl::PointCloud<pcl::PointXYZI> ground_cloud, obstacle_cloud;
     
-    dipgseg.segment_ground(cloud, cloud_ground, cloud_non_ground);
-    double time_all = dipgseg.get_whole_time();
-    double time_seg = dipgseg.get_seg_time();
-    if(verbose){
-      printf("-------------time_all: %f, time_seg: %f\n", time_all, time_seg);
-      printf("cloud size: %ld, cloud_ground size: %ld, cloud_non_ground size: %ld\n", cloud.size(), cloud_ground.size(), cloud_non_ground.size());
-    }
-
-    sensor_msgs::PointCloud2 ground_msg, non_ground_msg;
-
-    pcl::toROSMsg(cloud_ground, ground_msg);
-    ground_msg.header.frame_id = "laser_link";
-    ground_msg.header.stamp = ros::Time::now();
-    ground_pub.publish(ground_msg);
-
-    pcl::toROSMsg(cloud_non_ground, non_ground_msg);
-    non_ground_msg.header.frame_id = "laser_link";
-    non_ground_msg.header.stamp = ros::Time::now();
-    non_ground_pub.publish(non_ground_msg);
+  dipgseg_->segment_ground(cloud, ground_cloud, obstacle_cloud);
+  if(verbose){
+    double time_all = dipgseg_->get_whole_time();
+    double time_seg = dipgseg_->get_seg_time();
+    printf("-------------time_all: %f, time_seg: %f\n", time_all, time_seg);
+    printf("cloud size: %ld, ground_cloud size: %ld, obstacle_cloud size: %ld\n", cloud.size(), ground_cloud.size(), obstacle_cloud.size());
+  }
+  auto ground_msg = std::make_shared<sensor_msgs::msg::PointCloud2>();
+  auto obstacle_msg = std::make_shared<sensor_msgs::msg::PointCloud2>();
+  pcl::toROSMsg(ground_cloud, *ground_msg);
+  pcl::toROSMsg(obstacle_cloud, *obstacle_msg);
+  ground_msg->header = msg->header;
+  obstacle_msg->header = msg->header;
+  ground_pub_->publish(*ground_msg);
+  obstacle_pub_->publish(*obstacle_msg);
 }
 
 int main(int argc, char** argv){
-    ros::init(argc, argv, "demo_node");
-    ros::NodeHandle nh;
-    ros::Rate loop_rate(10);
-    nh.param<bool>("verbose", verbose, false);
-    ground_pub= nh.advertise<sensor_msgs::PointCloud2>("/ground", 10);
-    non_ground_pub= nh.advertise<sensor_msgs::PointCloud2>("/non_ground", 10);
-    DIPGSEG::Dipgseg dipgseg;
-    ros::Subscriber sub = nh.subscribe<sensor_msgs::PointCloud2>("/pointcloud", 1, boost::bind(callback, _1, dipgseg));
-    printf("-----------------------waiting for pointcloud...----------------------\n");
-    ros::spin();
-    return 0;
+  rclcpp::init(argc, argv);
+  rclcpp::NodeOptions options;
+  auto node = std::make_shared<SegmentationNode>(options);
+  rclcpp::spin(node);
+  rclcpp::shutdown();
+  return 0;
 }

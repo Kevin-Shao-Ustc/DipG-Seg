@@ -52,7 +52,9 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <math.h>
 
 #include <ros/ros.h>
-#include <sensor_msgs/PointCloud2.h>
+// #include <sensor_msgs/PointCloud2.h>
+// #include <sensor_msgs/msg/PointCloud2.hpp>
+#include <sensor_msgs/msg/point_cloud2.hpp>
 
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>

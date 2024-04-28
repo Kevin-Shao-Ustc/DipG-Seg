@@ -1,27 +1,12 @@
-cmake_minimum_required(VERSION 3.0.2)
-project(dipgseg)
+cmake_minimum_required(VERSION 3.10) 
+project(point_segmentation)
 
-set(CMAKE_BUILD_TYPE "Release")
-set(CMAKE_CXX_FLAGS "-Wall -Wextra -std=c++11 -O3")
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+add_definitions(-std=c++17 -O3)
 
-
-find_package(catkin REQUIRED COMPONENTS
-  roscpp
-  rospy
-  sensor_msgs
-)
-
-find_package(PCL 1.2 REQUIRED)
-find_package(Boost 1.50 REQUIRED)
-
-catkin_package(
-CATKIN_DEPENDS sensor_msgs
-)
+find_package(ament_cmake_auto)
 
 include_directories(
-  ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_INCLUDE_DESTINATION}
-  # include
-  ${catkin_INCLUDE_DIRS}
   ${CMAKE_CURRENT_SOURCE_DIR}/src/kitti_loader
   ${CMAKE_CURRENT_SOURCE_DIR}/src/include
   ${CMAKE_CURRENT_SOURCE_DIR}/src/utils
@@ -30,19 +15,14 @@ include_directories(
   SYSTEM ${OpenCV_INCLUDE_DIRS}
 )
 
-link_directories(${PCL_LIBRARY_DIRS})
-add_definitions(${PCL_DEFINITIONS})
 
+ament_auto_find_build_dependencies()
+ament_auto_add_executable(point_segmentation_node src/demo.cpp)
 
-add_library(kitti_loader_lib
-  src/kitti_loader/kitti_loader.cpp
-)
+ament_auto_package(INSTALL_TO_SHARE launch)
 
-find_package(OpenCV REQUIRED)
-find_package(Boost 1.54 REQUIRED)
-
-add_executable(offline_kitti_node src/offline_kitti_node.cpp)
-target_link_libraries(offline_kitti_node ${catkin_LIBRARIES} ${OpenCV_LIBS} ${PCL_LIBRARIES} kitti_loader_lib)
-
-add_executable(demo_node src/demo.cpp)
-target_link_libraries(demo_node ${catkin_LIBRARIES} ${OpenCV_LIBS} ${PCL_LIBRARIES})
+#############
+# QTCREATOR #
+#############
+FILE(GLOB_RECURSE LibFiles "include/*")
+add_custom_target(headers SOURCES ${LibFiles})

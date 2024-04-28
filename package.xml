@@ -1,22 +1,28 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>dipgseg</name>
-  <version>0.0.0</version>
-  <description>The dipgseg package</description>
+  <name>point_segmentation</name>
+  <version>0.0.1</version>
+  <description>point_segmentation</description>
+  
+  <maintainer email="lorenwel@ethz.ch">Lorenz Wellhausen</maintainer>
+  
+  <license>BSD</license>
 
-  <maintainer email="hao.wen@my.cityu.edu.hk">Hao Wen</maintainer>
-
-
-  <license>GPLv3</license>
-
-  <buildtool_depend>catkin</buildtool_depend>
-  <build_depend>roscpp</build_depend>
-  <build_depend>rospy</build_depend>
-  <build_depend>sensor_msgs</build_depend>
-  <build_export_depend>roscpp</build_export_depend>
-  <build_export_depend>rospy</build_export_depend>
-  <build_export_depend>sensor_msgs</build_export_depend>
-  <exec_depend>roscpp</exec_depend>
-  <exec_depend>rospy</exec_depend>
-  <exec_depend>sensor_msgs</exec_depend>
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  
+  <depend>eigen_conversions</depend>
+  <depend>rclcpp</depend>  
+  <depend>tf2_ros</depend>
+  <depend>sensor_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>vision_opencv</depend>
+  <depend>cv_bridge</depend>
+  <depend>eigen</depend>
+  <depend>pcl</depend>
+  <depend>pcl_ros</depend>
+  <depend>pcl_conversions</depend>
+  
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
 </package>

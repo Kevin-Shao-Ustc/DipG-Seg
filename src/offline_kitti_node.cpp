@@ -4,7 +4,9 @@
 #include "dipgseg.h"
 
 #include <ros/ros.h>
-#include <sensor_msgs/PointCloud2.h>
+// #include <sensor_msgs/PointCloud2.h>
+// #include <sensor_msgs/msg/PointCloud2.hpp>
+#include <sensor_msgs/msg/point_cloud2.hpp>
 
 /*****************************************************************************************
 This is the main function of offline evaluation on KITTI dataset.
@@ -40,8 +42,8 @@ int main(int argc, char** argv){
     bool verbose = false;
     std::string dataset_path_pre;
 
-    ground_pub= nh.advertise<sensor_msgs::PointCloud2>("/ground", 10);
-    non_ground_pub= nh.advertise<sensor_msgs::PointCloud2>("/non_ground", 10);
+    ground_pub= nh.advertise<sensor_msgs::msg::PointCloud2>("/ground", 10);
+    non_ground_pub= nh.advertise<sensor_msgs::msg::PointCloud2>("/non_ground", 10);
     DIPGSEG::Dipgseg dipgseg = DIPGSEG::Dipgseg();
 
     if(argc>1){
@@ -92,7 +94,7 @@ int main(int argc, char** argv){
         if(verbose)
             printf("-------------time_all: %f, time_seg: %f\n", time_all, time_seg);
 
-        sensor_msgs::PointCloud2 ground_msg, non_ground_msg;
+        sensor_msgs::msg::PointCloud2 ground_msg, non_ground_msg;
 
         pcl::toROSMsg(cloud_ground, ground_msg);
         ground_msg.header.frame_id = "laser_link";
